@@ -7,28 +7,96 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeCategory, setActiveCategory] = useState('All');
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageTokens, setPageTokens] = useState([null]); // Stores tokens for each page: [null, tokenP2, tokenP3...]
 
   const categories = ['All', 'Music', 'Gaming', 'News', 'Live', 'Sports', 'Learning'];
+
+  useEffect(() => {
+    // Reset pagination when category changes
+    setCurrentPage(1);
+    setPageTokens([null]);
+  }, [activeCategory]);
 
   useEffect(() => {
     async function fetchVideos() {
       setLoading(true);
       setError(null);
+      // Don't clear videos immediately to avoid layout shift, or do clear if preferred
+      // setVideos([]); 
       
       try {
         const API_KEY = import.meta.env.VITE_VIDEO_API_KEY;
         const searchQuery = activeCategory === 'All' ? 'trending' : activeCategory;
+        const pageToken = pageTokens[currentPage - 1]; // Get token for current page
         
-        const response = await fetch(
-          `https://www.googleapis.com/youtube/v3/search?part=snippet&maxResults=24&q=${searchQuery}&type=video&key=${API_KEY}`
-        );
+        const url = new URL('https://www.googleapis.com/youtube/v3/search');
+        url.searchParams.append('part', 'snippet');
+        url.searchParams.append('maxResults', '24');
+        url.searchParams.append('q', searchQuery);
+        url.searchParams.append('type', 'video');
+        url.searchParams.append('key', API_KEY);
+        if (pageToken) {
+          url.searchParams.append('pageToken', pageToken);
+        }
+
+        const response = await fetch(url.toString());
 
         if (!response.ok) {
           throw new Error('Failed to fetch videos');
         }
 
         const data = await response.json();
-        setVideos(data.items || []);
+        const searchItems = data.items || [];
+        
+        // Extract video IDs to fetch detailed stats
+        const videoIds = searchItems.map(item => item.id.videoId).filter(Boolean).join(',');
+
+        let finalVideos = searchItems;
+
+        if (videoIds) {
+          try {
+            const statsUrl = new URL('https://www.googleapis.com/youtube/v3/videos');
+            statsUrl.searchParams.append('part', 'statistics,contentDetails');
+            statsUrl.searchParams.append('id', videoIds);
+            statsUrl.searchParams.append('key', API_KEY);
+            
+            const statsResponse = await fetch(statsUrl.toString());
+            
+            if (statsResponse.ok) {
+              const statsData = await statsResponse.json();
+              // Create a map for faster lookup
+              const statsMap = new Map(statsData.items.map(item => [item.id, item]));
+              
+              // Merge search results with detailed stats
+              finalVideos = searchItems.map(item => {
+                const details = statsMap.get(item.id.videoId);
+                return details 
+                  ? { ...item, statistics: details.statistics, contentDetails: details.contentDetails } 
+                  : item;
+              });
+            }
+          } catch (statsErr) {
+            console.error('Error fetching video statistics:', statsErr);
+            // Fallback to basic search results if potential quota issues or errors
+          }
+        }
+
+        setVideos(finalVideos);
+        
+        // If we have a next page token and we haven't saved it yet for the next page, save it
+        if (data.nextPageToken) {
+          setPageTokens(prev => {
+            const newTokens = [...prev];
+            // Ensure we don't overwrite if we go back and forth
+            if (newTokens.length <= currentPage) {
+               newTokens[currentPage] = data.nextPageToken;
+            }
+            return newTokens;
+          });
+        }
       } catch (err) {
         setError(err.message);
         console.error('Error fetching videos:', err);
@@ -38,7 +106,12 @@ export default function Home() {
     }
     
     fetchVideos();
-  }, [activeCategory]);
+  }, [activeCategory, currentPage, pageTokens.length]); // Dependencies to trigger fetch
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="text-black dark:text-white">
@@ -84,11 +157,73 @@ export default function Home() {
 
       {/* Videos Grid */}
       {!loading && !error && videos.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8">
-          {videos.map((video) => (
-            <VideoCard key={video.id.videoId || video.id} video={video} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8">
+            {videos.map((video) => (
+              <VideoCard key={video.id.videoId || video.id} video={video} />
+            ))}
+          </div>
+          
+          {/* Pagination Controls */}
+          <div className="flex flex-wrap justify-center gap-2 mt-12 pb-10">
+            {/* Previous Button */}
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                currentPage === 1
+                  ? 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed'
+                  : 'bg-gray-200 text-black dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              Prev
+            </button>
+
+            {/* Page Numbers */}
+            {pageTokens.map((_, index) => {
+              const pageNumber = index + 1;
+              // Only show limited pages around current to avoid overflow if list gets long
+              if (
+                pageNumber === 1 ||
+                pageNumber === pageTokens.length ||
+                (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+              ) {
+                return (
+                  <button
+                    key={pageNumber}
+                    onClick={() => handlePageChange(pageNumber)}
+                    className={`w-10 h-10 rounded-full font-medium transition-all ${
+                      currentPage === pageNumber
+                        ? 'bg-black text-white dark:bg-white dark:text-black scale-110 shadow-lg'
+                        : 'bg-gray-200 text-black dark:bg-gray-800 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {pageNumber}
+                  </button>
+                );
+              } else if (
+                pageNumber === currentPage - 2 ||
+                pageNumber === currentPage + 2
+              ) {
+                return <span key={pageNumber} className="flex items-end px-1">...</span>;
+              }
+              return null;
+            })}
+
+            {/* Next Button */}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === pageTokens.length}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                currentPage === pageTokens.length
+                  ? 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-600 cursor-not-allowed'
+                  : 'bg-gray-200 text-black dark:bg-gray-700 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        </>
       )}
 
       {/* No Videos State */}

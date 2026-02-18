@@ -6,6 +6,21 @@ export default function VideoCard({ video }) {
   const videoId = id.videoId || id;
   const { title, thumbnails, channelTitle, publishedAt } = snippet;
 
+  // Format view count
+  const formatViewCount = (count) => {
+    if (!count) return '0 views';
+    const num = parseInt(count, 10);
+    if (isNaN(num)) return '0 views';
+
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M views';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K views';
+    } else {
+      return num + ' views';
+    }
+  };
+
   // Format view count and published time
   const formatPublishedTime = (dateString) => {
     const date = new Date(dateString);
@@ -54,7 +69,7 @@ export default function VideoCard({ video }) {
             {channelTitle}
           </p>
           <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-            <span>801K views</span>
+            <span>{formatViewCount(video.statistics?.viewCount)}</span>
             <span>•</span>
             <span>{formatPublishedTime(publishedAt)}</span>
           </div>
