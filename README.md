@@ -12,7 +12,7 @@ Media Streamer is a modern React-based video streaming application that mimics t
 - **Dark Mode**: Built-in theme switcher with preference persistence.
 - **Collapsible Sidebar**: smooth navigation drawer for easy access to app sections.
 
-## � Tech Stack
+## 🛠️ Tech Stack
 
 - **Frontend**: [React](https://react.dev/) (v19)
 - **Build Tool**: [Vite](https://vitejs.dev/)
@@ -53,7 +53,7 @@ graph TD
         WatchRoute --> Watch[Watch.jsx]
         UploadRoute --> Upload[Upload.jsx]
         ProfileRoute --> Profile[Profile.jsx]
-        SearchRoute --> Home[Home.jsx (Reused)]
+        SearchRoute --> Home_Reused["Home.jsx (Reused)"]
     end
 
     subgraph "UI Components"
@@ -65,7 +65,7 @@ graph TD
 
 ### Data Flow & Interaction Sequence
 
-This sequence diagram illustrates how a user interacts with the application to search for and watch a video.
+This sequence diagram illustrate how a user interacts with the application to search for and watch a video.
 
 ```mermaid
 sequenceDiagram
@@ -99,7 +99,7 @@ sequenceDiagram
     deactivate Watch
 ```
 
-## � Module Breakdown
+## 📁 Module Breakdown
 
 ### 1. Core Application Logic (`src/`)
 - **`main.jsx`**: The application entry point. It initializes the React root and wraps the entire app with `BrowserRouter` to enable client-side routing.
