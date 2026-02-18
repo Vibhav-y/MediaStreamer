@@ -65,7 +65,7 @@ graph TD
 
 ### Data Flow & Interaction Sequence
 
-This sequence diagram illustrates how a user interacts with the application to search for and watch a video.
+This sequence diagram illustrate how a user interacts with the application to search for and watch a video.
 
 ```mermaid
 sequenceDiagram
