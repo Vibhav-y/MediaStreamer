@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import VideoCard from '../components/VideoCard'
-import ShimmerCard from '../components/ShimmerCard'
+import ShimmerCard from '../components/ShimerCard'
 
 export default function Home() {
   const [videos, setVideos] = useState([]);

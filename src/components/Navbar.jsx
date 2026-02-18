@@ -44,7 +44,7 @@ export default function Navbar({ toggleSidebar }) {
               <path d="M8 5v14l11-7z"/>
             </svg>
           </div>
-          <span className="text-xl font-semibold text-black dark:text-white">Streamix</span>
+          <span className="text-xl font-semibold text-black dark:text-white">Media Streamer</span>
         </Link>
       </div>
 
