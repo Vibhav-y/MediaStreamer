@@ -49,14 +49,48 @@ export default function Home() {
         }
 
         const data = await response.json();
-        setVideos(data.items || []);
+        const searchItems = data.items || [];
+        
+        // Extract video IDs to fetch detailed stats
+        const videoIds = searchItems.map(item => item.id.videoId).filter(Boolean).join(',');
+
+        let finalVideos = searchItems;
+
+        if (videoIds) {
+          try {
+            const statsUrl = new URL('https://www.googleapis.com/youtube/v3/videos');
+            statsUrl.searchParams.append('part', 'statistics,contentDetails');
+            statsUrl.searchParams.append('id', videoIds);
+            statsUrl.searchParams.append('key', API_KEY);
+            
+            const statsResponse = await fetch(statsUrl.toString());
+            
+            if (statsResponse.ok) {
+              const statsData = await statsResponse.json();
+              // Create a map for faster lookup
+              const statsMap = new Map(statsData.items.map(item => [item.id, item]));
+              
+              // Merge search results with detailed stats
+              finalVideos = searchItems.map(item => {
+                const details = statsMap.get(item.id.videoId);
+                return details 
+                  ? { ...item, statistics: details.statistics, contentDetails: details.contentDetails } 
+                  : item;
+              });
+            }
+          } catch (statsErr) {
+            console.error('Error fetching video statistics:', statsErr);
+            // Fallback to basic search results if potential quota issues or errors
+          }
+        }
+
+        setVideos(finalVideos);
         
         // If we have a next page token and we haven't saved it yet for the next page, save it
         if (data.nextPageToken) {
           setPageTokens(prev => {
             const newTokens = [...prev];
-            // Ensure we don't overwrite if we go back and forth (mostly relevant if we didn't slice)
-            // But strict append is safer for linear navigation
+            // Ensure we don't overwrite if we go back and forth
             if (newTokens.length <= currentPage) {
                newTokens[currentPage] = data.nextPageToken;
             }
